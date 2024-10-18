@@ -80,8 +80,8 @@ public:
     float Fov{}; //自瞄范围
     bool DrawFov{}; //绘制自瞄范围
 
-    bool Team; //是否绘制队友
-    bool box; //方框
+    bool Team{}; //是否绘制队友
+    bool box{}; //方框
     bool Health{}; //血量
     bool Skeleton{}; //骨骼
 };

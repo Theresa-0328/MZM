@@ -51,7 +51,7 @@ public:
             {
                 continue;
             }
-            if (!mem::Read(g_hanle, clientAddress + 0x1A23138, &ActorPlayer.address[0], sizeof(uint8_t*)))
+            if (!mem::Read(g_hanle, clientAddress + 0x1A25288, &ActorPlayer.address[0], sizeof(uint8_t*)))
             {
                 continue;
             }

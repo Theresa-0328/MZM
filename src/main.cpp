@@ -21,7 +21,7 @@ void initGameCheat()
 int main()
 {
     initGameCheat();
-    //myimgui::CreateWindow_Violet(L"SDL_app\000", L"反恐精英：全球攻势", &callback, "C:\\Windows\\Fonts\\msyh.ttc", 18.0f, false, 0);
-    myimgui::CreateWindow_Violet(L"SDL_app\000", L"Counter-Strike 2", &callback, "C:\\Windows\\Fonts\\msyh.ttc", 18.0f, false, 0);
+    //myimgui::CreateWindow_Violet(L"SDL_app", L"反恐精英：全球攻势", &callback, "C:\\Windows\\Fonts\\msyh.ttc", 18.0f, false, 0);
+    myimgui::CreateWindow_Violet(L"SDL_app", L"Counter-Strike 2", &callback, "C:\\Windows\\Fonts\\msyh.ttc", 18.0f, false, 0);
     return 0;
 }
