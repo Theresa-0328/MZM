@@ -26,7 +26,9 @@ public:
         {
             return;
         }
+
         ImGui::Begin("MZM");
+
         if (ImGui::Button("自瞄", { 80, 20 }))
         {
             ButtonState = 1;

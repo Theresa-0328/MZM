@@ -14,7 +14,7 @@ void initGameCheat()
     //cheat.g_hwnd = FindWindowW(L"SDL_app", L"反恐精英：全球攻势");
     cheat.g_hwnd = FindWindowW(L"SDL_app", L"Counter-Strike 2");
     GetWindowThreadProcessId(cheat.g_hwnd, &cheat.g_pid);
-    cheat.g_hanle = OpenProcess(PROCESS_ALL_ACCESS, true, cheat.g_pid);
+    cheat.g_handle = OpenProcess(PROCESS_ALL_ACCESS, true, cheat.g_pid);
     cheat.clientAddress = mem::GetModule(cheat.g_pid, L"client.dll");
 }
 
