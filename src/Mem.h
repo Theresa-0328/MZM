@@ -1,7 +1,8 @@
 ﻿#pragma once
 
-#include <Windows.h>
 #include <iostream>
+
+#include <Windows.h>
 #include <tlhelp32.h>
 
 //WINUSERAPI SHORT WINAPI GetAsyncKeyState(int vKey);

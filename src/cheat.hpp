@@ -5,9 +5,10 @@
 #include <string>
 #include <numbers>
 
+#include <DirectXMath.h>
+
 #include <offsets.hpp>
 #include <client_dll.hpp>
-#include <DirectXMath.h>
 
 #include "Mem.h"
 #include "myimgui.h"
@@ -76,9 +77,13 @@ public:
             //	continue;
             //}
             The2DboxSize();
-            if (m.box)
+            if (m.dynamicRect)
             {
-                DrawBox();
+                DrawDynamicRect();
+            }
+            if (m.box && !m.dynamicRect)
+            {
+                Draw2DRect();
             }
             if (m.Health)
             {
@@ -88,7 +93,7 @@ public:
             {
                 DrawSkeleton();
             }
-            EnterAmiQueue();
+            PushAmiQueue();
         }
         if (m.Aimbot)
         {
@@ -123,7 +128,7 @@ public:
             return false;
         }
 
-        uint8_t* skeletonAddress{ LocalPlayer.skeletonAddress[1] + 6 * 32 };
+        uint8_t* skeletonAddress{ LocalPlayer.skeletonAddress[1] + 5 * 32 };
         mem::Read(g_handle, skeletonAddress, &LocalPlayer.Axis, sizeof(LocalPlayer.Axis));
         return true;
     }
@@ -152,23 +157,6 @@ public:
             return false;
         }
 
-        if (!mem::Read(g_handle, ActorPlayer.address[1] + cs2_dumper::schemas::client_dll::C_Beam::m_fHaloScale, &ActorPlayer.Axis.x, sizeof(float)))
-        {
-            return false;
-        }
-        if (!mem::Read(g_handle, ActorPlayer.address[1] + cs2_dumper::schemas::client_dll::C_Beam::m_fAmplitude, &ActorPlayer.Axis.y, sizeof(float)))
-        {
-            return false;
-        }
-        if (!mem::Read(g_handle, ActorPlayer.address[1] + cs2_dumper::schemas::client_dll::C_Beam::m_fStartFrame, &ActorPlayer.Axis.z, sizeof(float)))
-        {
-            return false;
-        }
-        if (ActorPlayer.Axis.x == 0 && ActorPlayer.Axis.y == 0 && ActorPlayer.Axis.z == 0)
-        {
-            return false;
-        }
-
         if (!mem::Read(g_handle, ActorPlayer.address[1] + 0x38, &ActorPlayer.skeletonAddress[0], sizeof(void*)))
         {
             return false;
@@ -181,6 +169,16 @@ public:
         {
             return false;
         }
+
+        if (!mem::Read(g_handle, ActorPlayer.address[1] + cs2_dumper::schemas::client_dll::C_Beam::m_fHaloScale, &ActorPlayer.Axis, sizeof(DirectX::XMFLOAT3)))
+        {
+            return false;
+        }
+        if (ActorPlayer.Axis.x == 0 && ActorPlayer.Axis.y == 0 && ActorPlayer.Axis.z == 0)
+        {
+            return false;
+        }
+
         return true;
     }
 
@@ -272,7 +270,7 @@ public:
         return true;
     }
 
-    void DrawBox()
+    void Draw2DRect()
     {
         ImGui::GetForegroundDrawList()->AddRect({ ActorPlayer.BoxSize.x, ActorPlayer.BoxSize.y },
                                                 { ActorPlayer.BoxPosition.x, ActorPlayer.BoxPosition.y },
@@ -326,25 +324,27 @@ public:
 #endif
     }
 
-    float CrosshairDistance(const DirectX::XMFLOAT2& Crosshair, const DirectX::XMFLOAT2& target)
+    float static CrosshairDistance(const DirectX::XMFLOAT2& Crosshair, const DirectX::XMFLOAT2& target)
     {
         DirectX::XMFLOAT2 offset{ Crosshair.x - target.x, Crosshair.y - target.y };
         return std::sqrtf(offset.x * offset.x + offset.y * offset.y);
     }
 
-    void EnterAmiQueue()
+    void PushAmiQueue()
     {
         FOV = m.Fov * 8;
         float worldLocation1[3]{ ActorPlayer.Axis.x, ActorPlayer.Axis.y, ActorPlayer.Axis.z + 70.f - ActorPlayer.Axis.z };
         float screen[2];
-        if (Worldscreen2D(worldLocation1, screen))
+        if (!Worldscreen2D(worldLocation1, screen))
         {
-            float ActorDistance = CrosshairDistance({ w, h }, { screen[0], screen[1] });
-            if (FOV > ActorDistance)
-            {
-                AimEnterAddress[0] = ActorPlayer.address[1];
-                AimEnterAddress[1] = ActorPlayer.skeletonAddress[1];
-            }
+            return;
+        }
+        float ActorDistance{ CrosshairDistance({ w, h }, { screen[0], screen[1] }) };
+        if (FOV > ActorDistance)
+        {
+            FOV = ActorDistance;
+            AimEnterAddress[0] = ActorPlayer.address[1];
+            AimEnterAddress[1] = ActorPlayer.skeletonAddress[1];
         }
     }
 
@@ -359,7 +359,7 @@ public:
         {
             return;
         }
-        if (GetAsyncKeyState(5))
+        if (GetAsyncKeyState(m.Aimkey))
         {
             mem::Write(g_handle, clientAddress + cs2_dumper::offsets::client_dll::dwViewAngles, &AimMouse, sizeof(AimMouse));
         }
@@ -373,7 +373,7 @@ public:
         DirectX::XMFLOAT3 AimAxis;
         DirectX::XMFLOAT2 Aimmouse;
 
-        Aimindex = AimAddress + 6 * 32;
+        Aimindex = AimAddress + m.Aimplace * 32;
 
         mem::Read(g_handle, Aimindex, &ActorAxis.x, 4);
         mem::Read(g_handle, Aimindex + 4, &ActorAxis.y, 4);
@@ -400,6 +400,37 @@ public:
 
         Aimmouse.y = atan(AimAxis.z / sqrt(AimAxis.x * AimAxis.x + AimAxis.y * AimAxis.y)) / std::numbers::pi * 180;
         return DirectX::XMFLOAT2(Aimmouse.y, Aimmouse.x);
+    }
+
+    DirectX::XMFLOAT2 GetSkeletonScreenLocation(int index)
+    {
+        uint8_t* SkeletonAddrss{ ActorPlayer.skeletonAddress[1] + index * 32 };
+        DirectX::XMFLOAT3 Location{};
+        mem::Read(g_handle, SkeletonAddrss, &Location, sizeof(Location));
+        float world[3]{ Location.x, Location.y, Location.z };
+        float screen[2]{};
+        if (!Worldscreen2D(world, screen))
+        {
+            return DirectX::XMFLOAT2{};
+        }
+        return DirectX::XMFLOAT2{ screen[0], screen[1] };
+    }
+
+    void DrawDynamicRect()
+    {
+        DirectX::XMFLOAT2 left{ GetSkeletonScreenLocation(87) };
+        DirectX::XMFLOAT2 right{ GetSkeletonScreenLocation(62) };
+        DirectX::XMFLOAT2 top{ GetSkeletonScreenLocation(27) };
+        DirectX::XMFLOAT2 bottom{ GetSkeletonScreenLocation(24) };
+
+        //ImGui::GetForegroundDrawList()->AddLine({ left.x, left.y }, { top.x, top.y }, ImColor(255, 0, 0));
+        //ImGui::GetForegroundDrawList()->AddLine({ left.x, left.y }, { right.x, right.y }, ImColor(255, 0, 0));
+        //ImGui::GetForegroundDrawList()->AddLine({ right.x, right.y }, { bottom.x, bottom.y }, ImColor(255, 0, 0));
+        //ImGui::GetForegroundDrawList()->AddLine({ top.x, top.y }, { bottom.x, bottom.y }, ImColor(255, 0, 0));
+
+        DirectX::XMFLOAT2 head{ GetSkeletonScreenLocation(6) };
+        ImGui::GetForegroundDrawList()->AddCircle({ head.x, head.y }, 10, ImColor(255, 255, 0));
+        ImGui::GetForegroundDrawList()->AddRect({ left.x, bottom.y }, { right.x, right.y }, ImColor(255, 0, 0));
     }
     //private:
 
